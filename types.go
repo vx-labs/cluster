@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/cluster/raft"
 	"google.golang.org/grpc"
 )
@@ -53,6 +54,7 @@ func (n NetworkConfig) AdvertizedAddress() string {
 }
 
 type GossipConfig struct {
-	JoinList []string
-	Network  NetworkConfig
+	JoinList                 []string
+	Network                  NetworkConfig
+	DistributedStateDelegate memberlist.Delegate
 }

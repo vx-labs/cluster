@@ -38,7 +38,7 @@ func NewMultiNode(config NodeConfig, dialer func(address string, opts ...grpc.Di
 		config.ServiceName,
 		gossipNetworkConfig.ListeningPort, gossipNetworkConfig.AdvertizedHost, gossipNetworkConfig.AdvertizedPort,
 		config.RaftConfig.Network.AdvertizedPort,
-		dialer, recorder, logger)
+		dialer, recorder, config.GossipConfig.DistributedStateDelegate, logger)
 
 	rpcAddress := config.RaftConfig.Network.AdvertizedAddress()
 

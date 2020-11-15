@@ -28,6 +28,7 @@ type pool struct {
 	logger              *zap.Logger
 	recorder            Recorder
 	meta                []byte
+	stateDelegate       memberlist.Delegate
 }
 
 func (p *pool) DoesMemberExists(id uint64) bool {
@@ -104,7 +105,7 @@ func (p *pool) MemberCount() int {
 }
 
 // New creates a new membership pool.
-func New(id uint64, clusterName string, port int, advertiseAddr string, advertisePort, rpcPort int, dialer func(address string, opts ...grpc.DialOption) (*grpc.ClientConn, error), recorder Recorder, logger *zap.Logger) Pool {
+func New(id uint64, clusterName string, port int, advertiseAddr string, advertisePort, rpcPort int, dialer func(address string, opts ...grpc.DialOption) (*grpc.ClientConn, error), recorder Recorder, stateDelegate memberlist.Delegate, logger *zap.Logger) Pool {
 	idBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(idBuf, id)
 	idstr := string(idBuf)
