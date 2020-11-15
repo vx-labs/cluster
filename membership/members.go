@@ -65,6 +65,9 @@ func (p *pool) NotifyJoin(n *memberlist.Node) {
 	if p.recorder != nil {
 		p.recorder.NotifyGossipJoin(id)
 	}
+	if p.eventDelegate != nil {
+		p.eventDelegate.NotifyGossipJoin(id)
+	}
 }
 
 // NotifyLeave is called if a peer leaves the cluster.
@@ -82,6 +85,9 @@ func (p *pool) NotifyLeave(n *memberlist.Node) {
 	}
 	if p.recorder != nil {
 		p.recorder.NotifyGossipLeave(id)
+	}
+	if p.eventDelegate != nil {
+		p.eventDelegate.NotifyGossipLeave(id)
 	}
 }
 

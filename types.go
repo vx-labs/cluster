@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/cluster/membership"
 	"github.com/vx-labs/cluster/raft"
 	"google.golang.org/grpc"
 )
@@ -58,4 +59,5 @@ type GossipConfig struct {
 	JoinList                 []string
 	Network                  NetworkConfig
 	DistributedStateDelegate memberlist.Delegate
+	NodeEventDelegate        membership.Recorder
 }
