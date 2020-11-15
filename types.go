@@ -19,6 +19,7 @@ type Node interface {
 	Index() uint64
 }
 type MultiNode interface {
+	Call(id uint64, f func(*grpc.ClientConn) error) error
 	Node(cluster string, config RaftConfig) Node
 	Shutdown() error
 }

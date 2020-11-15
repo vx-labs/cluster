@@ -78,6 +78,10 @@ func NewMultiNode(config NodeConfig, dialer func(address string, opts ...grpc.Di
 	clusterpb.RegisterMultiRaftServer(server, m)
 	return m
 }
+func (n *multinode) Call(id uint64, f func(*grpc.ClientConn) error) error {
+	return n.gossip.Call(id, f)
+}
+
 func (n *multinode) Node(cluster string, raftConfig RaftConfig) Node {
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
