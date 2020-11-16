@@ -39,6 +39,10 @@ func (p *pool) DoesMemberExists(id uint64) bool {
 	return ok
 }
 
+func (p *pool) GossipMembers() []*memberlist.Node {
+	return p.mlist.Members()
+}
+
 func (p *pool) Members() []*api.Member {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()

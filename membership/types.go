@@ -3,6 +3,7 @@ package membership
 import (
 	"context"
 
+	"github.com/hashicorp/memberlist"
 	api "github.com/vx-labs/cluster/clusterpb"
 	"github.com/vx-labs/cluster/raft"
 	"google.golang.org/grpc"
@@ -17,6 +18,7 @@ type Pool interface {
 	Join(hosts []string) error
 	Members() []*api.Member
 	MemberCount() int
+	GossipMembers() []*memberlist.Node
 	Shutdown() error
 	WaitForNodes(ctx context.Context, clusterName, nodeName string, expectedNumber int, rpcDialer func(address string, opts ...grpc.DialOption) (*grpc.ClientConn, error)) ([]raft.Peer, error)
 }

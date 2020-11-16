@@ -21,6 +21,7 @@ type Node interface {
 }
 type MultiNode interface {
 	Call(id uint64, f func(*grpc.ClientConn) error) error
+	Gossip() membership.Pool
 	Node(cluster string, config RaftConfig) Node
 	Shutdown() error
 }

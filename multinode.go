@@ -78,6 +78,9 @@ func NewMultiNode(config NodeConfig, dialer func(address string, opts ...grpc.Di
 	clusterpb.RegisterMultiRaftServer(server, m)
 	return m
 }
+func (n *multinode) Gossip() membership.Pool {
+	return n.gossip
+}
 func (n *multinode) Call(id uint64, f func(*grpc.ClientConn) error) error {
 	return n.gossip.Call(id, f)
 }
