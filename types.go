@@ -30,6 +30,7 @@ type NodeConfig struct {
 	ID            uint64
 	ServiceName   string
 	DataDirectory string
+	Version       string
 	GossipConfig  GossipConfig
 	RaftConfig    RaftConfig
 }

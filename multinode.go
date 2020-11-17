@@ -38,13 +38,14 @@ func NewMultiNode(config NodeConfig, dialer func(address string, opts ...grpc.Di
 		config.ServiceName,
 		gossipNetworkConfig.ListeningPort, gossipNetworkConfig.AdvertizedHost, gossipNetworkConfig.AdvertizedPort,
 		config.RaftConfig.Network.AdvertizedPort,
-		dialer, recorder, config.GossipConfig.DistributedStateDelegate, config.GossipConfig.NodeEventDelegate, logger)
+		dialer, recorder, config.GossipConfig.DistributedStateDelegate, config.GossipConfig.NodeEventDelegate, config.Version, logger)
 
 	rpcAddress := config.RaftConfig.Network.AdvertizedAddress()
 
 	gossip.UpdateMetadata(membership.EncodeMD(config.ID,
 		config.ServiceName,
 		rpcAddress,
+		config.Version,
 	))
 
 	if len(joinList) > 0 {
@@ -108,6 +109,7 @@ func (n *multinode) Node(cluster string, raftConfig RaftConfig) Node {
 	n.gossip.UpdateMetadata(membership.EncodeMD(n.config.ID,
 		n.config.ServiceName,
 		n.config.RaftConfig.Network.AdvertizedAddress(),
+		n.config.Version,
 	))
 
 	config := n.config

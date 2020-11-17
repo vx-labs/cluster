@@ -110,14 +110,14 @@ func (p *pool) MemberCount() int {
 }
 
 // New creates a new membership pool.
-func New(id uint64, clusterName string, port int, advertiseAddr string, advertisePort, rpcPort int, dialer func(address string, opts ...grpc.DialOption) (*grpc.ClientConn, error), recorder Recorder, stateDelegate memberlist.Delegate, eventDelegate Recorder, logger *zap.Logger) Pool {
+func New(id uint64, clusterName string, port int, advertiseAddr string, advertisePort, rpcPort int, dialer func(address string, opts ...grpc.DialOption) (*grpc.ClientConn, error), recorder Recorder, stateDelegate memberlist.Delegate, eventDelegate Recorder, version string, logger *zap.Logger) Pool {
 	idBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(idBuf, id)
 	idstr := string(idBuf)
 	p := &pool{
 		id:                id,
 		peers:             make(map[uint64]*member),
-		meta:              EncodeMD(id, clusterName, fmt.Sprintf("%s:%d", advertiseAddr, rpcPort)),
+		meta:              EncodeMD(id, clusterName, fmt.Sprintf("%s:%d", advertiseAddr, rpcPort), version),
 		rpcDialer:         dialer,
 		logger:            logger,
 		healthcheckerDone: make(chan struct{}),
