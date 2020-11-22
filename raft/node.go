@@ -10,7 +10,10 @@ import (
 	"os"
 	"path"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/golang/protobuf/proto"
 
 	"google.golang.org/grpc"
 
@@ -53,7 +56,7 @@ type SnapshotApplier func(context.Context, uint64, *snap.Snapshotter) error
 
 type StatsProviderGetter func() StatsProvider
 
-type Command struct {
+type command struct {
 	Ctx     context.Context
 	Payload []byte
 	ErrCh   chan error
@@ -88,20 +91,22 @@ type RaftNode struct {
 	waldir              string // path to WAL directory
 	snapdir             string // path to snapshot directory
 	getStateSnapshot    func() ([]byte, error)
-
-	progress    progress
-	progressMu  sync.RWMutex
-	membership  Membership
-	node        raft.Node
-	raftStorage *raft.MemoryStorage
-	wal         StableStorage
-	snapshotter *snap.Snapshotter
+	reqID               uint64
+	wait                *wait
+	progress            progress
+	progressMu          sync.RWMutex
+	membership          Membership
+	node                raft.Node
+	raftStorage         *raft.MemoryStorage
+	wal                 StableStorage
+	snapshotter         *snap.Snapshotter
 
 	snapCount   uint64
 	ready       chan struct{}
 	leaderState *leaderState
 	cancel      chan struct{}
 	done        chan struct{}
+	applyCh     chan *command
 }
 
 type Config struct {
@@ -147,9 +152,12 @@ func NewNode(config Config, mesh Membership, recorder Recorder, logger *zap.Logg
 		ready:             make(chan struct{}),
 		cancel:            make(chan struct{}),
 		done:              make(chan struct{}),
+		applyCh:           make(chan *command),
 		commitApplier:     config.CommitApplier,
 		snapshotApplier:   config.SnapshotApplier,
 		confChangeApplier: config.ConfChangeApplier,
+		wait:              newWait(),
+		reqID:             0,
 		// rest of structure populated after WAL replay
 	}
 	if !fileutil.Exist(rc.snapdir) {
@@ -160,6 +168,7 @@ func NewNode(config Config, mesh Membership, recorder Recorder, logger *zap.Logg
 	rc.snapshotter = snap.New(rc.logger, rc.snapdir)
 	rc.hasBeenBootstrapped = wal.Exist(rc.waldir)
 	rc.wal = rc.replayWAL()
+
 	return rc
 }
 
@@ -313,12 +322,26 @@ func (rc *RaftNode) publishEntries(ctx context.Context, ents []raftpb.Entry) err
 			if len(ents[i].Data) == 0 {
 				break
 			}
-			err := rc.commitApplier(ctx, Commit{
-				Index:   ents[i].Index,
-				Payload: ents[i].Data,
-			})
-			if err != nil {
-				return err
+			req := &clusterpb.RaftProposeRequest{}
+			err := proto.Unmarshal(ents[i].Data, req)
+			if err == nil {
+				err = rc.commitApplier(ctx, Commit{
+					Index:   ents[i].Index,
+					Payload: req.Data,
+				})
+				if err == nil {
+					rc.wait.trigger(req.ID, ents[i].Index)
+				} else {
+					rc.wait.trigger(req.ID, err)
+				}
+			} else {
+				err = rc.commitApplier(ctx, Commit{
+					Index:   ents[i].Index,
+					Payload: ents[i].Data,
+				})
+				if err != nil {
+					return err
+				}
 			}
 		case raftpb.EntryConfChangeV2:
 			var cc raftpb.ConfChangeV2
@@ -421,15 +444,39 @@ func (rc *RaftNode) Run(ctx context.Context, peers []Peer, join bool, config Nod
 	}
 }
 
-func (rc *RaftNode) Apply(ctx context.Context, buf []byte) error {
+func (rc *RaftNode) Apply(ctx context.Context, buf []byte) (uint64, error) {
 	if rc.node == nil {
 		select {
 		case <-rc.Ready():
 		case <-ctx.Done():
-			return ctx.Err()
+			return 0, ctx.Err()
 		}
 	}
-	return rc.node.Propose(ctx, buf)
+	ctx, cancel := context.WithCancel(ctx)
+	id := atomic.AddUint64(&rc.reqID, 1)
+	ch := rc.wait.register(id, nil, cancel)
+	payload, err := proto.Marshal(&clusterpb.RaftProposeRequest{
+		ID:   id,
+		Data: buf,
+	})
+	err = rc.node.Propose(ctx, payload)
+	if err != nil {
+		rc.wait.cancel(id)
+		return 0, err
+	}
+	select {
+	case x := <-ch:
+		if v, ok := x.(uint64); ok {
+			return v, nil
+		}
+		if v, ok := x.(error); ok {
+			return 0, v
+		}
+		panic("invalid data received")
+	case <-ctx.Done():
+		rc.wait.cancel(id)
+		return 0, ctx.Err()
+	}
 }
 
 func (rc *RaftNode) serveChannels(ctx context.Context) {

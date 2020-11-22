@@ -6,6 +6,10 @@ option go_package = "clusterpb";
 import "go.etcd.io/etcd/raft/raftpb/raft.proto";
 
 message Payload { bytes Data = 1; }
+message RaftProposeRequest {
+  uint64 ID = 1;
+  bytes Data = 2;
+}
 
 message RaftContext {
   uint64 ID = 1;
@@ -35,7 +39,10 @@ message GetStatusResponse {
   bool IsInCluster = 3;
 };
 
-message RemoveMemberRequest { uint64 ID = 1; bool Force = 2; }
+message RemoveMemberRequest {
+  uint64 ID = 1;
+  bool Force = 2;
+}
 message RemoveMemberResponse {}
 message PromoteMemberResponse {}
 
