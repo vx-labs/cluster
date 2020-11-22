@@ -27,7 +27,7 @@ type node struct {
 func (n *node) Call(id uint64, f func(*grpc.ClientConn) error) error {
 	return n.gossip.Call(id, f)
 }
-func (n *node) Apply(ctx context.Context, event []byte) error {
+func (n *node) Apply(ctx context.Context, event []byte) (uint64, error) {
 	return n.raft.Apply(ctx, event)
 }
 func (n *node) Ready() <-chan struct{} {
