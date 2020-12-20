@@ -93,6 +93,7 @@ type RaftNode struct {
 	getStateSnapshot    func() ([]byte, error)
 	reqID               uint64
 	wait                *wait
+	leader              uint64
 	progress            progress
 	progressMu          sync.RWMutex
 	membership          Membership
@@ -231,11 +232,10 @@ func (rc *RaftNode) replayWAL() *wal.WAL {
 }
 
 func (rc *RaftNode) Leader() uint64 {
-	if rc.node == nil {
-		return 0
-	}
-	l := rc.node.Status().Lead
-	return l
+	return atomic.LoadUint64(&rc.leader)
+}
+func (rc *RaftNode) setLeader(v uint64) {
+	atomic.StoreUint64(&rc.leader, v)
 }
 func (rc *RaftNode) IsRemovedFromCluster() bool {
 	return !rc.IsLeader() && !rc.IsVoter() && !rc.IsLeader()
@@ -500,8 +500,9 @@ func (rc *RaftNode) serveChannels(ctx context.Context) {
 			start := time.Now()
 			if rd.SoftState != nil {
 				currentLeader := rc.Leader()
-				newLeader := rd.SoftState.Lead != raft.None && currentLeader != rd.SoftState.Lead
+				newLeader := currentLeader != 0 && rd.SoftState.Lead != raft.None && currentLeader != rd.SoftState.Lead
 				if newLeader {
+					rc.setLeader(rd.SoftState.Lead)
 					if rd.SoftState.Lead == rc.id {
 						rc.logger.Info("cluster leadership acquired")
 						rc.leaderState.Start(ctx)
@@ -520,6 +521,7 @@ func (rc *RaftNode) serveChannels(ctx context.Context) {
 					}
 				}
 				if rd.SoftState.Lead == raft.None {
+					rc.setLeader(0)
 					if currentLeader > 0 {
 						rc.logger.Warn("raft cluster has no leader")
 					}
