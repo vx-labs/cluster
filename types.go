@@ -39,7 +39,7 @@ type RaftConfig struct {
 	ExpectedNodeCount         int
 	AppliedIndex              uint64
 	DisableProposalForwarding bool
-	LeaderFunc                func(context.Context) error
+	LeaderFunc                func(context.Context, raft.RaftStatusProvider) error
 	Network                   NetworkConfig
 	GetStateSnapshot          func() ([]byte, error)
 	CommitApplier             raft.CommitApplier

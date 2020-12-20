@@ -18,7 +18,7 @@ func newLeaderState(f LeaderFunc) *leaderState {
 	}
 }
 
-func (l *leaderState) Start(ctx context.Context) error {
+func (l *leaderState) Start(ctx context.Context, node RaftStatusProvider) error {
 	if l.f == nil {
 		return nil
 	}
@@ -30,7 +30,7 @@ func (l *leaderState) Start(ctx context.Context) error {
 	l.funcDone = ch
 	go func() {
 		defer close(ch)
-		l.f(l.ctx)
+		l.f(l.ctx, node)
 	}()
 	return nil
 }

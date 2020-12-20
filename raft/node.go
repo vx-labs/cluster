@@ -30,9 +30,13 @@ import (
 	"go.uber.org/zap"
 )
 
+type RaftStatusProvider interface {
+	Status() raft.Status
+}
+
 // LeaderFunc is a function that will be run on the Leader node.
 // LeaderFunc must stop as soon as the given context is cancelled.
-type LeaderFunc func(context.Context) error
+type LeaderFunc func(context.Context, RaftStatusProvider) error
 
 type StatsProvider interface {
 	Histogram(name string) *prometheus.Histogram
@@ -505,7 +509,7 @@ func (rc *RaftNode) serveChannels(ctx context.Context) {
 						rc.setLeader(rd.SoftState.Lead)
 						if rd.SoftState.Lead == rc.id {
 							rc.logger.Info("cluster leadership acquired")
-							rc.leaderState.Start(ctx)
+							rc.leaderState.Start(ctx, rc.node)
 						} else {
 							if currentLeader == rc.id {
 								ctx, cancel := context.WithTimeout(ctx, time.Second*1)
