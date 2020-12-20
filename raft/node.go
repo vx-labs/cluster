@@ -499,7 +499,7 @@ func (rc *RaftNode) serveChannels(ctx context.Context) {
 		case rd := <-rc.node.Ready():
 			start := time.Now()
 			if rd.SoftState != nil {
-				currentLeader := rc.Leader()
+				currentLeader := rd.SoftState.Lead
 				newLeader := rd.SoftState.Lead != raft.None && currentLeader != rd.SoftState.Lead
 				if newLeader {
 					if rd.SoftState.Lead == rc.id {
