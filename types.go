@@ -46,6 +46,7 @@ type RaftConfig struct {
 	SnapshotApplier           raft.SnapshotApplier
 	ConfChangeApplier         raft.ConfChangeApplier
 	OnNodeRemoved             func(id uint64, leader bool)
+	OnNodeAdded               func(id uint64, leader bool)
 }
 type NetworkConfig struct {
 	AdvertizedHost string

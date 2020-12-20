@@ -196,5 +196,11 @@ func (n *multinode) PromoteMember(ctx context.Context, in *clusterpb.PromoteMemb
 	if !ok {
 		return nil, status.Error(codes.NotFound, "cluster not found")
 	}
-	return &clusterpb.PromoteMemberResponse{}, instance.raft.PromoteMember(ctx, in.Context.ID, in.Context.Address)
+	err := instance.raft.PromoteMember(ctx, in.Context.ID, in.Context.Address)
+
+	if err == nil && instance.config.RaftConfig.OnNodeAdded != nil {
+		instance.config.RaftConfig.OnNodeAdded(in.Context.ID, instance.raft.IsLeader())
+	}
+
+	return &clusterpb.PromoteMemberResponse{}, err
 }
