@@ -70,12 +70,11 @@ func (n *node) isVoter(ctx context.Context, leader uint64) bool {
 	}
 	return false
 }
+func (n *node) Leader() uint64 {
+	return n.raft.Leader()
+}
 func (n *node) Index() uint64 {
 	return n.raft.CommittedIndex()
-}
-func (n *node) RunFromAppliedIndex(ctx context.Context, idx uint64) {
-	n.config.RaftConfig.AppliedIndex = idx
-	n.Run(ctx)
 }
 func (n *node) Run(ctx context.Context) {
 	defer n.logger.Debug("raft node stopped")

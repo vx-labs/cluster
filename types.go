@@ -12,12 +12,12 @@ import (
 
 type Node interface {
 	Run(context.Context)
-	RunFromAppliedIndex(ctx context.Context, idx uint64)
 	Shutdown() error
 	Apply(context.Context, []byte) (uint64, error)
 	Ready() <-chan struct{}
 	Call(id uint64, f func(*grpc.ClientConn) error) error
 	Index() uint64
+	Leader() uint64
 }
 type MultiNode interface {
 	Call(id uint64, f func(*grpc.ClientConn) error) error
