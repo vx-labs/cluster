@@ -728,6 +728,8 @@ func (rc *RaftNode) Leave(ctx context.Context) error {
 			continue
 		}
 		rc.node.TransferLeadership(ctx, rc.id, candidate)
-		rc.waitForLeaderChange(ctx, rc.id)
+		if err := rc.waitForLeaderChange(ctx, rc.id); err != nil {
+			return err
+		}
 	}
 }
