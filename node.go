@@ -198,5 +198,6 @@ func (n *node) Run(ctx context.Context) {
 		AppliedIndex:              n.config.RaftConfig.AppliedIndex,
 		DisableProposalForwarding: n.config.RaftConfig.DisableProposalForwarding,
 		LeaderFunc:                n.config.RaftConfig.LeaderFunc,
+		CheckQuorum:                n.config.RaftConfig.CheckQuorum,
 	})
 }

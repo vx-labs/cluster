@@ -409,6 +409,7 @@ func (rc *RaftNode) publishEntries(ctx context.Context, ents []raftpb.Entry) err
 type NodeConfig struct {
 	AppliedIndex              uint64
 	DisableProposalForwarding bool
+	CheckQuorum               bool
 	LeaderFunc                LeaderFunc
 }
 
@@ -434,7 +435,7 @@ func (rc *RaftNode) Run(ctx context.Context, peers []Peer, join bool, config Nod
 		MaxInflightMsgs:           256,
 		Applied:                   config.AppliedIndex,
 		DisableProposalForwarding: config.DisableProposalForwarding,
-		CheckQuorum:               true,
+		CheckQuorum:               config.CheckQuorum,
 	}
 	if os.Getenv("ENABLE_RAFT_DEBUG_LOG") == "true" {
 		c.Logger = &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)}
