@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync/atomic"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/cluster/clusterpb"
 	api "github.com/vx-labs/cluster/clusterpb"
 	"go.etcd.io/etcd/raft/raftpb"
@@ -35,7 +37,18 @@ func (rc *RaftNode) RemoveMember(ctx context.Context, id uint64, force bool) err
 			}
 		}
 	}
-	return rc.node.ProposeConfChange(ctx, raftpb.ConfChangeV2{
+	ctx, cancel := context.WithCancel(ctx)
+
+	reqID := atomic.AddUint64(&rc.reqID, 1)
+	ch := rc.wait.register(id, nil, cancel)
+	payload, err := proto.Marshal(&clusterpb.RaftProposeRequest{
+		ID: reqID,
+	})
+	if err != nil {
+		return err
+	}
+	err = rc.node.ProposeConfChange(ctx, raftpb.ConfChangeV2{
+		Context: payload,
 		Changes: []raftpb.ConfChangeSingle{
 			{
 				Type:   raftpb.ConfChangeRemoveNode,
@@ -43,7 +56,24 @@ func (rc *RaftNode) RemoveMember(ctx context.Context, id uint64, force bool) err
 			},
 		},
 	})
+	if err != nil {
+		rc.wait.cancel(id)
+		return err
+	}
 
+	select {
+	case x := <-ch:
+		if _, ok := x.(uint64); ok {
+			return nil
+		}
+		if v, ok := x.(error); ok {
+			return v
+		}
+		panic("invalid data received")
+	case <-ctx.Done():
+		rc.wait.cancel(id)
+		return ctx.Err()
+	}
 }
 func (rc *RaftNode) ProcessMessage(ctx context.Context, message *raftpb.Message) error {
 	if rc.node == nil {
@@ -77,8 +107,21 @@ func (rc *RaftNode) PromoteMember(ctx context.Context, id uint64, address string
 	if nodeProgress.PendingSnapshot != 0 || nodeProgress.Next < st.Commit {
 		return errors.New("node is late")
 	}
-	err := rc.node.ProposeConfChange(ctx, raftpb.ConfChangeV2{
-		Context: []byte(address),
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	reqID := atomic.AddUint64(&rc.reqID, 1)
+	ch := rc.wait.register(id, nil, cancel)
+	payload, err := proto.Marshal(&clusterpb.RaftProposeRequest{
+		ID:   reqID,
+		Data: []byte(address),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = rc.node.ProposeConfChange(ctx, raftpb.ConfChangeV2{
+		Context: payload,
 		Changes: []raftpb.ConfChangeSingle{
 			{
 				Type:   raftpb.ConfChangeAddNode,
@@ -87,15 +130,29 @@ func (rc *RaftNode) PromoteMember(ctx context.Context, id uint64, address string
 		},
 	})
 	if err != nil {
-		rc.logger.Error("failed to promote cluster peer",
-			zap.Error(err), zap.String("hex_remote_raft_node_id", fmt.Sprintf("%x", id)))
-	} else {
-		rc.logger.Info("promoted new cluster peer",
-			zap.Error(err), zap.String("hex_remote_raft_node_id", fmt.Sprintf("%x", id)))
+		rc.wait.cancel(id)
+		return err
 	}
-	return err
 
+	select {
+	case x := <-ch:
+		if _, ok := x.(uint64); ok {
+			rc.logger.Info("promoted new cluster peer",
+				zap.Error(err), zap.String("hex_remote_raft_node_id", fmt.Sprintf("%x", id)))
+			return nil
+		}
+		if v, ok := x.(error); ok {
+			rc.logger.Error("failed to promote cluster peer",
+				zap.Error(err), zap.String("hex_remote_raft_node_id", fmt.Sprintf("%x", id)))
+			return v
+		}
+		panic("invalid data received")
+	case <-ctx.Done():
+		rc.wait.cancel(id)
+		return ctx.Err()
+	}
 }
+
 func (rc *RaftNode) AddLearner(ctx context.Context, id uint64, address string) error {
 	if rc.node == nil {
 		return errors.New("node not ready")

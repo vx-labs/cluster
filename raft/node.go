@@ -350,6 +350,9 @@ func (rc *RaftNode) publishEntries(ctx context.Context, ents []raftpb.Entry) err
 		case raftpb.EntryConfChangeV2:
 			var cc raftpb.ConfChangeV2
 			cc.Unmarshal(ents[i].Data)
+			req := &clusterpb.RaftProposeRequest{}
+			proto.Unmarshal(cc.Context, req)
+
 			rc.progress.confState = *rc.node.ApplyConfChange(cc)
 
 			rc.recorder.NotifyRaftConfChange(rc.clusterID, cc)
@@ -369,9 +372,16 @@ func (rc *RaftNode) publishEntries(ctx context.Context, ents []raftpb.Entry) err
 					}
 				}
 			}
+			if req.ID > 0 {
+				rc.wait.trigger(req.ID, ents[i].Index)
+			}
+
 		case raftpb.EntryConfChange:
 			var cc raftpb.ConfChange
 			cc.Unmarshal(ents[i].Data)
+			req := &clusterpb.RaftProposeRequest{}
+			proto.Unmarshal(cc.Context, req)
+
 			rc.progress.confState = *rc.node.ApplyConfChange(cc)
 			rc.recorder.NotifyRaftConfChange(rc.clusterID, cc)
 			if rc.confChangeApplier != nil {
@@ -387,6 +397,9 @@ func (rc *RaftNode) publishEntries(ctx context.Context, ents []raftpb.Entry) err
 				case raftpb.ConfChangeAddNode:
 					rc.hasBeenRemoved = false
 				}
+			}
+			if req.ID > 0 {
+				rc.wait.trigger(req.ID, ents[i].Index)
 			}
 		}
 		rc.progress.appliedIndex = ents[i].Index
