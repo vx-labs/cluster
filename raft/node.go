@@ -95,7 +95,6 @@ type RaftNode struct {
 	waldir              string // path to WAL directory
 	snapdir             string // path to snapshot directory
 	getStateSnapshot    func() ([]byte, error)
-	reqID               uint64
 	wait                *wait
 	leader              uint64
 	progress            progress
@@ -162,7 +161,6 @@ func NewNode(config Config, mesh Membership, recorder Recorder, logger *zap.Logg
 		snapshotApplier:   config.SnapshotApplier,
 		confChangeApplier: config.ConfChangeApplier,
 		wait:              newWait(),
-		reqID:             0,
 		// rest of structure populated after WAL replay
 	}
 	if !fileutil.Exist(rc.snapdir) {
@@ -470,15 +468,15 @@ func (rc *RaftNode) Apply(ctx context.Context, buf []byte) (uint64, error) {
 		}
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	id := atomic.AddUint64(&rc.reqID, 1)
-	ch := rc.wait.register(id, nil, cancel)
+	reqID := uint64(time.Now().UnixNano())
+	ch := rc.wait.register(reqID, nil, cancel)
 	payload, err := proto.Marshal(&clusterpb.RaftProposeRequest{
-		ID:   id,
+		ID:   reqID,
 		Data: buf,
 	})
 	err = rc.node.Propose(ctx, payload)
 	if err != nil {
-		rc.wait.cancel(id)
+		rc.wait.cancel(reqID)
 		return 0, err
 	}
 	select {
@@ -491,7 +489,7 @@ func (rc *RaftNode) Apply(ctx context.Context, buf []byte) (uint64, error) {
 		}
 		panic("invalid data received")
 	case <-ctx.Done():
-		rc.wait.cancel(id)
+		rc.wait.cancel(reqID)
 		return 0, ctx.Err()
 	}
 }

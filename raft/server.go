@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync/atomic"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/cluster/clusterpb"
@@ -39,7 +39,7 @@ func (rc *RaftNode) RemoveMember(ctx context.Context, id uint64, force bool) err
 	}
 	ctx, cancel := context.WithCancel(ctx)
 
-	reqID := atomic.AddUint64(&rc.reqID, 1)
+	reqID := uint64(time.Now().UnixNano())
 	ch := rc.wait.register(reqID, nil, cancel)
 	payload, err := proto.Marshal(&clusterpb.RaftProposeRequest{
 		ID: reqID,
@@ -110,7 +110,7 @@ func (rc *RaftNode) PromoteMember(ctx context.Context, id uint64, address string
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	reqID := atomic.AddUint64(&rc.reqID, 1)
+	reqID := uint64(time.Now().UnixNano())
 	ch := rc.wait.register(reqID, nil, cancel)
 	payload, err := proto.Marshal(&clusterpb.RaftProposeRequest{
 		ID:   reqID,
