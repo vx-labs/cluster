@@ -36,19 +36,21 @@ func (p *pool) NotifyJoin(n *memberlist.Node) {
 		return
 	}
 	p.mtx.Lock()
-	defer p.mtx.Unlock()
 	md, err := DecodeMD(n.Meta)
 	if err != nil {
 		p.logger.Error("failed to decode new node meta", zap.String("new_node_id", fmt.Sprintf("%x", id)), zap.Error(err))
+		p.mtx.Unlock()
 		return
 	}
 	if md.ID != id {
 		p.logger.Error("mismatch between node metadata id and node name", zap.String("new_node_id", fmt.Sprintf("%x", id)), zap.Error(err))
+		p.mtx.Unlock()
 		return
 	}
 	old, ok := p.peers[md.ID]
 	if ok && old != nil {
 		if old.Conn.Target() == md.RPCAddress {
+			p.mtx.Unlock()
 			return
 		}
 		old.Conn.Close()
@@ -56,12 +58,14 @@ func (p *pool) NotifyJoin(n *memberlist.Node) {
 	conn, err := p.rpcDialer(md.RPCAddress)
 	if err != nil {
 		p.logger.Error("failed to dial new gossip nope", zap.Error(err))
+		p.mtx.Unlock()
 		return
 	}
 	p.peers[md.ID] = &member{
 		Conn:    conn,
 		Enabled: true,
 	}
+	p.mtx.Unlock()
 	if p.recorder != nil {
 		p.recorder.NotifyGossipJoin(id)
 	}
@@ -77,12 +81,12 @@ func (p *pool) NotifyLeave(n *memberlist.Node) {
 		return
 	}
 	p.mtx.Lock()
-	defer p.mtx.Unlock()
 	old, ok := p.peers[id]
 	if ok && old != nil {
 		old.Conn.Close()
 		delete(p.peers, id)
 	}
+	p.mtx.Unlock()
 	if p.recorder != nil {
 		p.recorder.NotifyGossipLeave(id)
 	}
@@ -101,8 +105,8 @@ func (p *pool) Call(id uint64, f func(*grpc.ClientConn) error) error {
 		return errors.New("attempted to contact to local node")
 	}
 	p.mtx.RLock()
-	defer p.mtx.RUnlock()
 	peer, ok := p.peers[id]
+	p.mtx.RUnlock()
 	if !ok {
 		return ErrPeerNotFound
 	}
@@ -113,9 +117,15 @@ func (p *pool) Call(id uint64, f func(*grpc.ClientConn) error) error {
 }
 
 func (p *pool) runHealthchecks(ctx context.Context) error {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	p.mtx.RLock()
+	set := make([]*member, len(p.peers))
+	idx := 0
 	for _, peer := range p.peers {
+		set[idx] = peer
+		idx++
+	}
+	p.mtx.RUnlock()
+	for _, peer := range set {
 		ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
 		resp, err := healthpb.NewHealthClient(peer.Conn).Check(ctx, &healthpb.HealthCheckRequest{})
 		cancel()
