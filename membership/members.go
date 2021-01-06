@@ -126,7 +126,7 @@ func (p *pool) runHealthchecks(ctx context.Context) error {
 	}
 	p.mtx.RUnlock()
 	for _, peer := range set {
-		ctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+		ctx, cancel := context.WithTimeout(ctx, 800*time.Millisecond)
 		resp, err := healthpb.NewHealthClient(peer.Conn).Check(ctx, &healthpb.HealthCheckRequest{})
 		cancel()
 		if err != nil || resp.Status != healthpb.HealthCheckResponse_SERVING {
