@@ -110,7 +110,7 @@ func (p *pool) MemberCount() int {
 }
 
 // New creates a new membership pool.
-func New(id uint64, clusterName string, port int, advertiseAddr string, advertisePort, rpcPort int, dialer func(address string, opts ...grpc.DialOption) (*grpc.ClientConn, error), recorder Recorder, stateDelegate memberlist.Delegate, eventDelegate Recorder, version string, logger *zap.Logger) Pool {
+func New(id uint64, clusterName string, port int, advertiseAddr string, advertisePort, rpcPort int, wanMode bool, dialer func(address string, opts ...grpc.DialOption) (*grpc.ClientConn, error), recorder Recorder, stateDelegate memberlist.Delegate, eventDelegate Recorder, version string, logger *zap.Logger) Pool {
 	idBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(idBuf, id)
 	idstr := string(idBuf)
@@ -140,7 +140,12 @@ func New(id uint64, clusterName string, port int, advertiseAddr string, advertis
 			}
 		}
 	}()
-	config := memberlist.DefaultLANConfig()
+	var config *memberlist.Config
+	if wanMode {
+		config = memberlist.DefaultWANConfig()
+	} else {
+		config = memberlist.DefaultLANConfig()
+	}
 	config.AdvertiseAddr = advertiseAddr
 	config.AdvertisePort = advertisePort
 	config.BindPort = port

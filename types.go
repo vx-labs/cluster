@@ -63,6 +63,7 @@ func (n NetworkConfig) AdvertizedAddress() string {
 type GossipConfig struct {
 	JoinList                 []string
 	Network                  NetworkConfig
+	WANMode                  bool
 	DistributedStateDelegate memberlist.Delegate
 	NodeEventDelegate        membership.Recorder
 }
