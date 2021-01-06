@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/cluster/membership"
@@ -56,7 +57,7 @@ type NetworkConfig struct {
 }
 
 func (n NetworkConfig) AdvertizedAddress() string {
-	return fmt.Sprintf("%s:%d", n.AdvertizedHost, n.AdvertizedPort)
+	return net.JoinHostPort(n.AdvertizedHost, fmt.Sprintf("%d", n.AdvertizedPort))
 }
 
 type GossipConfig struct {
