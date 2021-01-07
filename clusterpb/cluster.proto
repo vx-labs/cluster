@@ -27,6 +27,7 @@ message Member {
   string Address = 2;
   bool IsLeader = 3;
   bool IsAlive = 4;
+  int64 LatencyMs = 5;
 }
 message GetMembersResponse {
   repeated Member Members = 1;
@@ -53,6 +54,7 @@ message TopologyMemberStatus {
   bool IsAlive = 4;
   uint64 Applied = 5;
   bool IsVoter = 6;
+  int64 LatencyMs = 7;
 };
 message GetTopologyRequest { string ClusterID = 1; }
 message GetTopologyResponse {

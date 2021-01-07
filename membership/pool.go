@@ -49,7 +49,7 @@ func (p *pool) Members() []*api.Member {
 	out := make([]*api.Member, len(p.peers)+1)
 	idx := 0
 	for id, peer := range p.peers {
-		out[idx] = &api.Member{ID: id, Address: peer.Conn.Target(), IsAlive: peer.Enabled}
+		out[idx] = &api.Member{ID: id, Address: peer.Conn.Target(), IsAlive: peer.Enabled, LatencyMs: peer.LatencyMs}
 		idx++
 	}
 	pMD, err := DecodeMD(p.meta)

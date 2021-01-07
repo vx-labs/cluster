@@ -25,8 +25,9 @@ func parseID(id string) uint64 {
 }
 
 type member struct {
-	Conn    *grpc.ClientConn
-	Enabled bool
+	Conn      *grpc.ClientConn
+	Enabled   bool
+	LatencyMs int64
 }
 
 // NotifyJoin is called if a peer joins the cluster.
@@ -127,8 +128,10 @@ func (p *pool) runHealthchecks(ctx context.Context) error {
 	p.mtx.RUnlock()
 	for _, peer := range set {
 		ctx, cancel := context.WithTimeout(ctx, 800*time.Millisecond)
+		start := time.Now()
 		resp, err := healthpb.NewHealthClient(peer.Conn).Check(ctx, &healthpb.HealthCheckRequest{})
 		cancel()
+		peer.LatencyMs = time.Since(start).Milliseconds()
 		if err != nil || resp.Status != healthpb.HealthCheckResponse_SERVING {
 			if peer.Enabled {
 				peer.Enabled = false

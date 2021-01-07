@@ -253,6 +253,7 @@ func (rc *RaftNode) GetTopology(ctx context.Context, in *api.GetTopologyRequest)
 			if member.ID == id {
 				peer.Address = member.Address
 				peer.IsAlive = member.IsAlive
+				peer.LatencyMs = member.LatencyMs
 				break
 			}
 		}
